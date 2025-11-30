@@ -1,0 +1,664 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ultimate Countdown Bot</title>
+    
+    <!-- Load Tailwind CSS for utility classes -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- Load Font Awesome for icons (social links, settings) -->
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <style>
+        /* Custom font and base styles */
+        body {
+            font-family: 'Inter', sans-serif;
+            overflow: hidden; 
+            /* Ensure the body fills the viewport in all environments */
+            height: 100vh;
+            width: 100vw;
+        }
+        
+        /* Glassmorphism Effect for containers */
+        .glass-panel {
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
+        }
+        
+        /* Text Shadow for better visibility against dynamic backgrounds */
+        .text-shadow {
+            text-shadow: 2px 2px 6px rgba(0,0,0,0.9);
+        }
+        
+        /* Hover effect for interactive cards */
+        .number-card {
+            transition: all 0.3s ease;
+        }
+        .number-card:hover {
+            transform: translateY(-4px) scale(1.01);
+            box-shadow: 0 10px 40px 0 rgba(0, 0, 0, 0.5);
+        }
+
+        /* Styling for editable fields */
+        [contenteditable="true"]:focus {
+            outline: 3px solid theme('colors.blue.400');
+            outline-offset: 4px;
+            border-radius: 8px;
+            padding: 2px 8px;
+            margin: -2px -8px;
+            cursor: text;
+        }
+
+        /* Custom spinner for loading states */
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        .animate-spin-slow {
+            animation: spin 6s linear infinite;
+        }
+
+        /* Custom styles for the new circular logo-container */
+        #logo-container {
+            background-size: cover; /* Changed to cover for background images (if using URL) */
+            background-repeat: no-repeat;
+            background-position: center;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 0; /* Removed padding to allow full coverage */
+            box-sizing: border-box; 
+            cursor: pointer;
+            overflow: hidden; /* Clips inner content to the circular border */
+        }
+        #logo-container.empty:before {
+            content: "Click to add image, paste URL, or paste image from clipboard";
+            color: rgba(255, 255, 255, 0.6);
+            font-style: italic;
+            font-size: 0.9em;
+            text-align: center;
+            padding: 10px;
+        }
+        #logo-container img {
+            width: 100%;
+            height: 100%; 
+            object-fit: cover; /* ESSENTIAL: Image covers the entire circle, may crop if aspect ratios differ */
+            display: block; 
+            margin: 0; 
+            border-radius: 50%; /* Ensure the image itself is also circular */
+        }
+    </style>
+</head>
+<body class="bg-gray-900 text-white h-full w-full relative">
+
+    <!-- Dynamic Background Layer -->
+    <div id="app-bg" class="absolute inset-0 bg-cover bg-center transition-all duration-700 ease-in-out z-0" 
+         style="background-image: url('https://images.unsplash.com/photo-1533134486753-c833f0ed4866?q=80&w=1920&auto=format&fit=crop');">
+        <!-- Dark overlay to ensure text readability -->
+        <div class="absolute inset-0 bg-black/40"></div>
+    </div>
+
+    <!-- Main Content Container -->
+    <main class="relative z-10 h-full flex flex-col items-center justify-center p-4 text-center">
+        
+        <!-- Dynamic and Editable Full-Size Image Container (Now a Smaller Circle) -->
+        <div id="logo-container" 
+             class="mb-6 transition-all duration-500 hover:scale-105 glass-panel rounded-full shadow-xl flex items-center justify-center w-40 h-40 md:w-56 md:h-56"
+             contenteditable="true"
+             spellcheck="false">
+             <!-- Content is managed by JavaScript for image/URL handling -->
+        </div>
+
+        <!-- Dynamic and Editable Title -->
+        <h1 id="event-title" 
+            class="font-extrabold uppercase tracking-widest mb-6 text-shadow text-white cursor-pointer transition-all duration-300"
+            contenteditable="true"
+            spellcheck="false"
+            style="font-size: 50px;">
+            [DAYS] DAYS UNTIL EVENT START
+        </h1>
+
+        <!-- Countdown Timer Grid (Responsive: 3 columns) -->
+        <div class="grid grid-cols-3 gap-3 md:gap-6 w-full max-w-4xl px-2">
+            
+            <!-- Days Card -->
+            <div class="glass-panel rounded-xl md:rounded-3xl p-3 md:p-6 flex flex-col items-center justify-center number-card shadow-lg">
+                <span id="days" class="text-4xl md:text-7xl font-black text-yellow-400 drop-shadow-lg transition-all duration-300">00</span>
+                <span id="label-days" class="text-xs md:text-sm uppercase tracking-widest mt-1 md:mt-2 font-bold opacity-80">DAYS</span>
+            </div>
+            
+            <!-- Hours Card -->
+            <div class="glass-panel rounded-xl md:rounded-3xl p-3 md:p-6 flex flex-col items-center justify-center number-card shadow-lg">
+                <span id="hours" class="text-3xl md:text-6xl font-bold text-white drop-shadow-lg transition-all duration-300">00</span>
+                <span id="label-hours" class="text-xs md:text-sm uppercase tracking-widest mt-1 md:mt-2 font-bold opacity-80">HOURS</span>
+            </div>
+            
+            <!-- Minutes Card -->
+            <div class="glass-panel rounded-xl md:rounded-3xl p-3 md:p-6 flex flex-col items-center justify-center number-card shadow-lg">
+                <span id="minutes" class="text-3xl md:text-6xl font-bold text-white drop-shadow-lg transition-all duration-300">00</span>
+                <span id="label-minutes" class="text-xs md:text-sm uppercase tracking-widest mt-1 md:mt-2 font-bold opacity-80">MINUTES</span>
+            </div>
+        </div>
+        
+        <!-- Social Links/Call-to-Action Section -->
+        <div id="social-links-section" class="mt-8 w-full max-w-xl px-2">
+            <div class="flex flex-wrap gap-3 justify-center">
+                
+                <!-- TikTok Button -->
+                <a id="tiktok-btn" target="_blank" rel="noopener noreferrer" class="bg-black hover:bg-gray-800 text-white font-bold py-2 px-4 rounded-full transition-all active:scale-95 shadow-lg flex items-center justify-center min-w-[140px] opacity-90 hover:opacity-100">
+                    <i class="fab fa-tiktok mr-2"></i> TikTok
+                </a>
+                
+                <!-- YouTube Button -->
+                <a id="youtube-btn" target="_blank" rel="noopener noreferrer" class="bg-red-600 hover:bg-red-500 text-white font-bold py-2 px-4 rounded-full transition-all active:scale-95 shadow-lg flex items-center justify-center min-w-[140px] opacity-90 hover:opacity-100">
+                    <i class="fab fa-youtube mr-2"></i> YouTube
+                </a>
+                
+                <!-- Facebook Button -->
+                <a id="facebook-btn" target="_blank" rel="noopener noreferrer" class="bg-blue-600 hover:bg-blue-500 text-white font-bold py-2 px-4 rounded-full transition-all active:scale-95 shadow-lg flex items-center justify-center min-w-[140px] opacity-90 hover:opacity-100">
+                    <i class="fab fa-facebook-f mr-2"></i> Facebook
+                </a>
+                
+            </div>
+        </div>
+
+        <!-- Custom Footer Text - Editable on main screen -->
+        <div id="custom-footer-text"
+            class="mt-8 opacity-90 text-shadow text-base md:text-lg font-semibold tracking-wide bg-black/40 px-6 py-3 rounded-full cursor-pointer transition-all duration-300 hover:bg-black/60"
+            contenteditable="true"
+            spellcheck="false">
+            Your custom message here!
+        </div>
+
+    </main>
+    
+    <!-- Settings Toggle Button (Bottom Right) -->
+    <button id="settings-toggle" class="fixed bottom-6 right-6 z-50 bg-white/20 hover:bg-white/40 text-white p-4 rounded-full backdrop-blur-md transition-all shadow-xl border border-white/30 active:scale-95">
+        <i class="fas fa-cog text-xl animate-spin-slow"></i>
+    </button>
+
+    <!-- Settings Panel (Hidden by default) -->
+    <div id="settings-panel" class="fixed inset-y-0 right-0 w-full md:w-[400px] bg-gray-900/95 backdrop-blur-xl z-50 transform translate-x-full transition-transform duration-300 shadow-2xl flex flex-col border-l border-white/10">
+        
+        <div class="p-6 border-b border-white/10 flex justify-between items-center bg-white/5">
+            <h2 class="text-xl font-bold text-blue-400"><i class="fas fa-sliders-h mr-2"></i> Configuration</h2>
+            <button id="close-settings" class="text-gray-400 hover:text-white transition-colors p-2 rounded-full hover:bg-white/10">
+                <i class="fas fa-times text-xl"></i>
+            </button>
+        </div>
+
+        <div class="p-6 flex-1 overflow-y-auto space-y-6">
+            
+            <!-- Target Date Input -->
+            <div class="space-y-2">
+                <label class="text-sm font-bold text-gray-300 uppercase tracking-wide">Target Date & Time</label>
+                <input type="datetime-local" id="input-date" class="w-full bg-black/40 border border-gray-600 rounded-lg p-3 text-white focus:outline-none focus:border-blue-500 transition-colors">
+            </div>
+
+            <!-- Title Template Input -->
+            <div class="space-y-2">
+                <label class="text-sm font-bold text-gray-300 uppercase tracking-wide">Title Template (Use [DAYS] placeholder)</label>
+                <input type="text" id="input-title" placeholder="e.g., [DAYS] days left!" class="w-full bg-black/40 border border-gray-600 rounded-lg p-3 text-white focus:outline-none focus:border-blue-500 transition-colors">
+            </div>
+
+            <!-- Custom Footer Text Input -->
+            <div class="space-y-2">
+                <label class="text-sm font-bold text-gray-300 uppercase tracking-wide">Custom Footer Text</label>
+                <input type="text" id="input-footer-text" placeholder="e.g., Don't miss the live stream!" class="w-full bg-black/40 border border-gray-600 rounded-lg p-3 text-white focus:outline-none focus:border-blue-500 transition-colors">
+            </div>
+
+            <!-- Font Size and Label Settings -->
+            <div class="grid grid-cols-2 gap-4 pt-2 border-t border-white/10">
+                <div class="space-y-2">
+                    <label class="text-sm font-bold text-gray-300 uppercase tracking-wide">Title Size (px)</label>
+                    <input type="number" id="input-title-size" min="30" max="120" step="5" class="w-full bg-black/40 border border-gray-600 rounded-lg p-3 text-white focus:outline-none focus:border-blue-500">
+                </div>
+                <div class="space-y-2">
+                    <label class="text-sm font-bold text-gray-300 uppercase tracking-wide">Day Label</label>
+                    <input type="text" id="input-day-label" placeholder="DAYS" class="w-full bg-black/40 border border-gray-600 rounded-lg p-3 text-white focus:outline-none focus:border-blue-500">
+                </div>
+            </div>
+
+            <!-- Social Media URLs -->
+            <div class="pt-4 border-t border-white/10 space-y-3">
+                <label class="text-sm font-bold text-gray-300 uppercase tracking-wide mb-3 block">Social Media Links</label>
+                <input type="url" id="input-tiktok" placeholder="TikTok URL (required)" class="w-full bg-black/40 border border-gray-600 rounded-lg p-3 text-white text-sm focus:outline-none focus:border-blue-500">
+                <input type="url" id="input-youtube" placeholder="YouTube URL" class="w-full bg-black/40 border border-gray-600 rounded-lg p-3 text-white text-sm focus:outline-none focus:border-blue-500">
+                <input type="url" id="input-facebook" placeholder="Facebook URL" class="w-full bg-black/40 border border-gray-600 rounded-lg p-3 text-white text-sm focus:outline-none focus:border-blue-500">
+            </div>
+
+            <!-- Background URL / File Input -->
+            <div class="pt-4 border-t border-white/10 space-y-2">
+                <label class="text-sm font-bold text-gray-300 uppercase tracking-wide">Background Image URL or Upload</label>
+                <!-- URL Input -->
+                <input type="text" id="input-bg" placeholder="https://example.com/image.jpg" class="w-full bg-black/40 border border-gray-600 rounded-lg p-3 text-white focus:outline-none focus:border-blue-500 transition-colors">
+                <!-- File Input Button -->
+                <label for="file-bg-upload" class="flex items-center justify-center bg-gray-600 hover:bg-gray-500 text-white font-bold py-2 px-4 rounded-lg cursor-pointer transition-colors text-sm mt-1 shadow-md active:scale-95">
+                    <i class="fas fa-upload mr-2"></i> Upload Local Background
+                </label>
+                <input type="file" id="file-bg-upload" accept="image/*" class="hidden">
+                <p class="text-xs text-center text-gray-500">Local files are saved to your browser cache (Base64).</p>
+            </div>
+        </div>
+        
+        <!-- Save/Reset Actions -->
+        <div class="p-6 border-t border-white/10 bg-black/20">
+            <button id="save-btn" class="w-full bg-blue-600 hover:bg-blue-500 text-white font-bold py-3 rounded-lg shadow-lg transition-transform active:scale-95">
+                Apply & Close
+            </button>
+            <p class="text-xs text-center text-gray-500 mt-3">Settings auto-save on change.</p>
+        </div>
+    </div>
+
+    <script>
+        // --- State Management ---
+        const state = {
+            // Default target date is one week from now
+            targetDate: new Date(new Date().getTime() + (7 * 24 * 60 * 60 * 1000)).toISOString(),
+            titleTemplate: "[DAYS] DAYS UNTIL EVENT START",
+            customFooterText: "Your custom message here!",
+            titleFontSize: 50, 
+            bgUrl: "https://images.unsplash.com/photo-1533134486753-c833f0ed4866?q=80&w=1920&auto=format&fit=crop",
+            logoContent: '', // Stores either an <img> tag's HTML or a background-image URL
+            dayLabel: "DAYS", 
+            hourLabel: "HOURS",
+            minuteLabel: "MINUTES",
+            facebookUrl: "https://facebook.com",
+            youtubeUrl: "https://youtube.com",
+            tiktokUrl: "https://tiktok.com",
+            currentDays: 0 // Calculated days remaining
+        };
+
+        // --- DOM Elements Cache ---
+        const els = {
+            days: document.getElementById('days'),
+            hours: document.getElementById('hours'),
+            minutes: document.getElementById('minutes'),
+            title: document.getElementById('event-title'),
+            customFooterText: document.getElementById('custom-footer-text'),
+            bg: document.getElementById('app-bg'),
+            logoContainer: document.getElementById('logo-container'), 
+            panel: document.getElementById('settings-panel'),
+            toggleBtn: document.getElementById('settings-toggle'),
+            closeBtn: document.getElementById('close-settings'),
+            saveBtn: document.getElementById('save-btn'),
+            
+            labelDays: document.getElementById('label-days'),
+            labelHours: document.getElementById('label-hours'),
+            labelMinutes: document.getElementById('label-minutes'),
+            
+            facebookBtn: document.getElementById('facebook-btn'),
+            youtubeBtn: document.getElementById('youtube-btn'),
+            tiktokBtn: document.getElementById('tiktok-btn'),
+
+            inputs: {
+                date: document.getElementById('input-date'),
+                title: document.getElementById('input-title'),
+                titleSize: document.getElementById('input-title-size'),
+                footerText: document.getElementById('input-footer-text'),
+                bg: document.getElementById('input-bg'), 
+                dayLabel: document.getElementById('input-day-label'),
+                fileBg: document.getElementById('file-bg-upload'), 
+                facebook: document.getElementById('input-facebook'),
+                youtube: document.getElementById('input-youtube'),
+                tiktok: document.getElementById('input-tiktok'),
+            }
+        };
+
+        // --- Core Countdown Calculation and Display Update ---
+        function updateCountdownDisplay() {
+            const now = new Date().getTime();
+            const target = new Date(state.targetDate).getTime();
+            let distance = target - now;
+
+            if (distance < 0) {
+                distance = 0;
+                // If event is passed, maybe change the UI style
+                els.title.classList.add('text-green-400');
+            } else {
+                els.title.classList.remove('text-green-400');
+            }
+
+            // Calculate remaining time
+            const d = Math.floor(distance / (1000 * 60 * 60 * 24));
+            const h = Math.floor((distance % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+            const m = Math.floor((distance % (1000 * 60 * 60)) / (1000 * 60));
+
+            // Update state with current days (used for the title template)
+            state.currentDays = d; 
+
+            // Update numerical displays, padding single digits with '0'
+            els.days.innerText = d < 10 ? `0${d}` : d;
+            els.hours.innerText = h < 10 ? `0${h}` : h;
+            els.minutes.innerText = m < 10 ? `0${m}` : m;
+            
+            // Update dynamic title
+            updateDynamicTitle();
+        }
+        
+        function updateDynamicTitle() {
+            // Prevent updating the display while the user is typing in the main window
+            if (document.activeElement !== els.title) {
+                let finalTitle = state.titleTemplate.replace(/\[DAYS\]/g, state.currentDays.toLocaleString('en-US'));
+                els.title.innerText = finalTitle;
+            }
+        }
+
+        // --- UI Updates ---
+        function updateUI() {
+            // 1. Core Countdown Display (also updates the title)
+            updateCountdownDisplay();
+            
+            // 2. Labels
+            els.labelDays.innerText = state.dayLabel;
+            els.labelHours.innerText = state.hourLabel;
+            els.labelMinutes.innerText = state.minuteLabel;
+            
+            // 3. Fonts and Text
+            els.title.style.fontSize = `${state.titleFontSize}px`;
+            
+            // 4. Footer Text
+            if (document.activeElement !== els.customFooterText) {
+                 els.customFooterText.innerText = state.customFooterText;
+            }
+
+            // 5. Background and Logo Content
+            els.bg.style.backgroundImage = `url('${state.bgUrl}')`;
+            
+            // New Logo Handling: 
+            if (state.logoContent.includes('<img')) {
+                // Case 1: Logo is an <img> tag (pasted or dropped)
+                els.logoContainer.innerHTML = state.logoContent;
+                els.logoContainer.classList.remove('empty');
+                els.logoContainer.style.backgroundImage = ''; // Clear background image
+            } else if (state.logoContent) {
+                // Case 2: Logo is a URL (set as background for simple display)
+                els.logoContainer.innerHTML = ''; // Clear any residual text/tags
+                els.logoContainer.style.backgroundImage = `url('${state.logoContent}')`;
+                els.logoContainer.classList.remove('empty');
+            }
+            else {
+                // Case 3: Empty logo
+                els.logoContainer.innerHTML = '';
+                els.logoContainer.style.backgroundImage = '';
+                els.logoContainer.classList.add('empty');
+            }
+            
+            // 6. Social Links
+            els.facebookBtn.href = state.facebookUrl;
+            els.youtubeBtn.href = state.youtubeUrl;
+            els.tiktokBtn.href = state.tiktokUrl;
+            
+            // 7. Sync Settings Inputs
+            const d = new Date(state.targetDate);
+            d.setMinutes(d.getMinutes() - d.getTimezoneOffset());
+            els.inputs.date.value = d.toISOString().slice(0, 16);
+            
+            els.inputs.title.value = state.titleTemplate;
+            els.inputs.titleSize.value = state.titleFontSize;
+            els.inputs.footerText.value = state.customFooterText;
+            els.inputs.dayLabel.value = state.dayLabel;
+            
+            // Sync URL inputs 
+            els.inputs.bg.value = state.bgUrl.startsWith('data:image') ? 'Local file uploaded (Base64)' : state.bgUrl;
+            els.inputs.facebook.value = state.facebookUrl;
+            els.inputs.youtube.value = state.youtubeUrl;
+            els.inputs.tiktok.value = state.tiktokUrl;
+        }
+
+        // --- Settings & Persistence ---
+        function saveSettings() {
+            // 1. Get values from inputs (if they were opened)
+            state.titleTemplate = els.inputs.title.value || state.titleTemplate;
+            state.customFooterText = els.inputs.footerText.value || state.customFooterText;
+            state.dayLabel = els.inputs.dayLabel.value || state.dayLabel;
+            
+            // Font Size validation
+            const newSize = parseInt(els.inputs.titleSize.value);
+            if (!isNaN(newSize) && newSize >= 30 && newSize <= 120) {
+                state.titleFontSize = newSize;
+            }
+            
+            // Target Date validation
+            if(els.inputs.date.value) {
+                state.targetDate = new Date(els.inputs.date.value).toISOString();
+            }
+
+            // URL/Image handling (only override URL if the input is not the 'local file' placeholder)
+            const newBgValue = els.inputs.bg.value;
+            if (newBgValue && !newBgValue.includes('Local file uploaded')) {
+                state.bgUrl = newBgValue;
+            } 
+            
+            state.facebookUrl = els.inputs.facebook.value || state.facebookUrl;
+            state.youtubeUrl = els.inputs.youtube.value || state.youtubeUrl;
+            state.tiktokUrl = els.inputs.tiktok.value || state.tiktokUrl;
+
+            // 2. Save to browser's local storage
+            try {
+                localStorage.setItem('countdownBotSettings', JSON.stringify(state));
+            } catch (e) {
+                console.error("Failed to save settings to localStorage:", e);
+                // Optionally notify user
+            }
+            
+            // 3. Update the displayed UI
+            updateUI(); 
+
+            // 4. Close panel if requested
+            if (els.panel.classList.contains('translate-x-0')) {
+                 toggleSettings(false);
+            }
+        }
+
+        function loadSettings() {
+            try {
+                const saved = localStorage.getItem('countdownBotSettings');
+                if (saved) {
+                    // Merge saved settings into the default state
+                    Object.assign(state, JSON.parse(saved));
+                    // Simple type correction for font size
+                    if (typeof state.titleFontSize !== 'number') {
+                        state.titleFontSize = 50; 
+                    }
+                }
+            } catch (e) {
+                console.error("Failed to load settings from localStorage:", e);
+            }
+        }
+
+        // --- File Upload Logic (Base64) ---
+        function handleFileUpload(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                const base64Data = e.target.result;
+                
+                if (event.target.id === 'file-bg-upload') {
+                    state.bgUrl = base64Data;
+                    els.inputs.bg.value = 'Local file uploaded (Base64)'; 
+                } 
+                
+                // Immediately save the settings and update the UI
+                saveSettings();
+                event.target.value = ''; // Clear file input
+            };
+            reader.readAsDataURL(file);
+        }
+
+        // --- Event Listeners and Setup ---
+        function setupEventListeners() {
+            // Settings Panel Control
+            els.toggleBtn.addEventListener('click', () => toggleSettings(true));
+            els.closeBtn.addEventListener('click', () => toggleSettings(false));
+            els.saveBtn.addEventListener('click', saveSettings);
+            
+            // File Upload
+            els.inputs.fileBg.addEventListener('change', handleFileUpload);
+            
+            // Live Edit on Main Screen (Title)
+            els.title.addEventListener('blur', function() {
+                let cleanTemplate = this.innerText.trim();
+                if (!cleanTemplate) cleanTemplate = state.titleTemplate; // Revert if empty
+                // Preserve the [DAYS] placeholder in the template when editing the main display
+                if (!cleanTemplate.includes('[DAYS]')) {
+                    cleanTemplate = cleanTemplate + ' [DAYS]'; 
+                }
+                state.titleTemplate = cleanTemplate;
+                els.inputs.title.value = cleanTemplate; // Sync settings panel
+                saveSettings(); // Auto-save
+                updateCountdownDisplay(); // Re-render the count
+            });
+            els.title.addEventListener('focus', function() {
+                // Show the raw template when focusing for editing
+                this.innerText = state.titleTemplate;
+            });
+            
+            // Live Edit on Main Screen (Footer)
+            els.customFooterText.addEventListener('blur', function() {
+                let cleanText = this.innerText.trim();
+                if (!cleanText) cleanText = state.customFooterText; // Revert if empty
+                state.customFooterText = cleanText;
+                els.inputs.footerText.value = cleanText; // Sync settings panel
+                saveSettings(); // Auto-save
+                updateUI();
+            });
+            els.customFooterText.addEventListener('focus', function() {
+                this.innerText = state.customFooterText;
+            });
+
+            // Logo Container Contenteditable Logic
+            els.logoContainer.addEventListener('blur', function() {
+                // When focus leaves the logo container, check its content
+                const img = this.querySelector('img');
+                if (img && img.src) {
+                    // Case 1: Contains an actual image element
+                    state.logoContent = img.outerHTML; // Save the full img tag
+                } else if (this.innerText.trim().startsWith('http') || this.innerText.trim().startsWith('data:image')) {
+                    // Case 2: Contains a raw URL or Base64 string
+                    state.logoContent = this.innerText.trim();
+                } else {
+                    // Case 3: Empty or invalid content (e.g., random text)
+                    state.logoContent = ''; 
+                }
+                // Always clear inner content and let updateUI re-render based on state.logoContent
+                this.innerHTML = '';
+                saveSettings();
+                updateUI(); 
+            });
+
+            // Handle Pasting Images/URLs into the contenteditable logo container
+            els.logoContainer.addEventListener('paste', function(e) {
+                e.preventDefault();
+                const items = (e.clipboardData || e.originalEvent.clipboardData).items;
+                let handled = false;
+                for (let i = 0; i < items.length; i++) {
+                    // Handle clipboard image (pasting screenshot)
+                    if (items[i].type.indexOf("image") !== -1) {
+                        const file = items[i].getAsFile();
+                        const reader = new FileReader();
+                        reader.onload = function(event) {
+                            const img = document.createElement('img');
+                            img.src = event.target.result;
+                            // Add essential styling for circular containment and fitting
+                            // NOTE: object-fit: cover is used here to ensure the circle is fully covered
+                            img.setAttribute('style', 'width: 100%; height: 100%; object-fit: cover; border-radius: 50%;');
+
+                            els.logoContainer.innerHTML = ''; // Clear existing content
+                            els.logoContainer.appendChild(img);
+                            state.logoContent = img.outerHTML;
+                            saveSettings();
+                        };
+                        reader.readAsDataURL(file);
+                        handled = true;
+                        break;
+                    } 
+                    // Handle clipboard text (pasting URL)
+                    else if (items[i].type.indexOf("text/plain") !== -1) {
+                        const pastedText = (e.clipboardData || window.clipboardData).getData('text').trim();
+                        // Simple check to see if it's a URL
+                        if (pastedText.startsWith('http')) {
+                            state.logoContent = pastedText;
+                            els.logoContainer.innerHTML = ''; // Clear text content
+                            saveSettings();
+                            updateUI();
+                            handled = true;
+                            break;
+                        }
+                    }
+                }
+                if (!handled) {
+                    // If content was pasted but wasn't handled (e.g., random text), allow default paste behavior 
+                    // and let the 'blur' handler clean it up.
+                    setTimeout(() => {
+                        els.logoContainer.blur(); 
+                    }, 50);
+                }
+            });
+
+            // Handle Drag and Drop
+            els.logoContainer.addEventListener('dragover', function(e) {
+                e.preventDefault();
+                this.style.borderColor = 'theme("colors.blue.400")'; // Visual feedback
+            });
+
+            els.logoContainer.addEventListener('dragleave', function() {
+                this.style.borderColor = '';
+            });
+
+            els.logoContainer.addEventListener('drop', function(e) {
+                e.preventDefault();
+                this.style.borderColor = '';
+
+                const files = e.dataTransfer.files;
+                if (files.length > 0 && files[0].type.startsWith('image/')) {
+                    const file = files[0];
+                    const reader = new FileReader();
+                    reader.onload = function(event) {
+                        const img = document.createElement('img');
+                        img.src = event.target.result;
+                        // Add essential styling for circular containment and fitting
+                        // NOTE: object-fit: cover is used here to ensure the circle is fully covered
+                        img.setAttribute('style', 'width: 100%; height: 100%; object-fit: cover; border-radius: 50%;');
+                        
+                        els.logoContainer.innerHTML = ''; 
+                        els.logoContainer.appendChild(img);
+                        state.logoContent = img.outerHTML;
+                        saveSettings();
+                    };
+                    reader.readAsDataURL(file);
+                }
+            });
+
+        }
+
+        function toggleSettings(show) {
+            if (show) {
+                els.panel.classList.remove('translate-x-full');
+                els.panel.classList.add('translate-x-0');
+            } else {
+                els.panel.classList.remove('translate-x-0');
+                els.panel.classList.add('translate-x-full');
+            }
+        }
+
+        function init() {
+            loadSettings();
+            setupEventListeners();
+            updateUI(); 
+            // Start the interval timer
+            setInterval(updateCountdownDisplay, 1000);
+        }
+
+        // Run the initialization sequence
+        init();
+
+    </script>
+</body>
+</html>
